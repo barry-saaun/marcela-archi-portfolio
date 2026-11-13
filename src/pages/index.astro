@@ -199,6 +199,14 @@ const SHEET_SIZES = '(max-aspect-ratio: 1/1) 100vw, min(100vw, 200svh)';
 		<div class="proto">
 			cover <button data-v="a">A</button><button data-v="b">B</button><button data-v="c">C</button>
 		</div>
+		<script>
+			// Dot cursor for mouse users. CSS does the grow-on-hover; this only moves the dot.
+			if (matchMedia('(pointer: fine)').matches) {
+				const dot = document.body.appendChild(document.createElement('i'));
+				dot.className = 'cursor';
+				addEventListener('pointermove', (e) => (dot.style.translate = `${e.clientX}px ${e.clientY}px`));
+			}
+		</script>
 	</body>
 </html>
 
@@ -532,6 +540,32 @@ const SHEET_SIZES = '(max-aspect-ratio: 1/1) 100vw, min(100vw, 200svh)';
 		to {
 			left: 100%;
 		}
+	}
+
+	/* The native cursor is hidden only once the dot exists, so no script means a normal cursor. */
+	html:has(.cursor) * {
+		cursor: none;
+	}
+	.cursor {
+		position: fixed;
+		z-index: 9;
+		left: -1rem;
+		top: -1rem;
+		width: 2rem;
+		height: 2rem;
+		translate: -9rem -9rem;
+		border-radius: 50%;
+		background: #fff;
+		mix-blend-mode: difference; /* black on white pages, white on black ones */
+		pointer-events: none;
+		scale: 0.375;
+		transition:
+			scale 0.2s,
+			opacity 0.2s;
+	}
+	html:has(:is(a, button):hover) .cursor {
+		scale: 1;
+		opacity: 0.4;
 	}
 
 	.proto {

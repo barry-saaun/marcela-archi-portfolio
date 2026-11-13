@@ -1,16 +1,608 @@
 ---
+import { getCollection, render } from 'astro:content';
+import { Image } from 'astro:assets';
+import '@fontsource-variable/archivo/wdth.css';
+import cover from '../assets/cover.png';
+import back from '../assets/back.png';
+
+const EMAIL = 'marcelalunadonado@gmail.com'; // TODO: Marcela's real address
+
+type Img = { default: ImageMetadata };
+const sketches = import.meta.glob<Img>('../assets/*/sketch.png', { eager: true });
+const sheetFiles = import.meta.glob<Img>('../assets/*/[0-9]*.png', { eager: true });
+
+const projects = await Promise.all(
+	(await getCollection('projects'))
+		.sort((a, b) => a.data.order - b.data.order)
+		.map(async (p) => ({
+			...p,
+			Content: (await render(p)).Content,
+			sketch: sketches[`../assets/${p.id}/sketch.png`].default,
+			sheets: Object.keys(sheetFiles)
+				.filter((k) => k.startsWith(`../assets/${p.id}/`))
+				.sort()
+				.map((k) => sheetFiles[k].default),
+		})),
+);
+
+// One node per stop, placed by its page position in the book so the scroll marker lines up.
+const pageCount = 3 + projects.reduce((n, p) => n + 1 + p.sheets.length, 0);
+let page = 2;
+const stops = [
+	{ href: '#cover', label: 'Cover', at: 0 },
+	{ href: '#contents', label: 'Contents', at: 1 },
+	...projects.map((p) => {
+		const stop = { href: `#${p.id}`, label: p.data.title, at: page, n: p.data.order };
+		page += 1 + p.sheets.length;
+		return stop;
+	}),
+	{ href: '#end', label: 'Contact', at: pageCount - 1 },
+];
+const SHEET_SIZES = '(max-aspect-ratio: 1/1) 100vw, min(100vw, 200svh)';
 ---
 
-<html lang="en">
+<html lang="en" data-cover="a">
 	<head>
 		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
 		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<title>Marcela Luna — Architecture Portfolio</title>
+		<meta name="description" content="Architecture portfolio of Marcela Luna, Melbourne." />
+		<!-- PROTOTYPE: cover variant switch. Delete with .proto once a cover is chosen. -->
+		<script is:inline>
+			document.documentElement.dataset.cover = new URLSearchParams(location.search).get('cover') || 'a';
+			addEventListener('click', (e) => {
+				const v = e.target.dataset?.v;
+				if (!v) return;
+				document.documentElement.dataset.cover = v;
+				history.replaceState(null, '', `?cover=${v}${location.hash}`);
+			});
+		</script>
 	</head>
 	<body>
-		<h1>Astro</h1>
+		<section id="cover">
+			<div class="sheet">
+				<div class="page cover-a">
+					<div class="text">
+						<h1>Marcela Luna</h1>
+						<p class="meta">
+							<b>Type</b> / Architecture Portfolio<br />
+							<b>Location</b> / Melbourne<br />
+							<b>Year</b> / 2026
+						</p>
+					</div>
+					<Image src={cover} alt="Radial ink diagram of arcs and nodes" class="art" loading="eager" />
+				</div>
+				<div class="page cover-b">
+					<h1>Portfolio</h1>
+					<Image src={cover} alt="" class="art" loading="eager" />
+					<p class="name">Marcela Luna</p>
+				</div>
+				<div class="page cover-c">
+					<Image src={cover} alt="" class="art ink" loading="eager" />
+					<div class="text">
+						<h1>Marcela Luna</h1>
+						<p class="name">Architecture Portfolio 2026</p>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<section id="contents" class="dark">
+			<div class="sheet">
+				<div class="page toc">
+					<h2>Table of Contents</h2>
+					<ol>
+						{
+							projects.map((p) => (
+								<li>
+									<a href={`#${p.id}`}>
+										<Image src={p.sketch} alt="" class="ink" width={400} />
+										<hr />
+										<span class="num">{p.data.order}</span>
+										<span class="title">{p.data.title}</span>
+										<i>{p.data.summary}</i>
+									</a>
+								</li>
+							))
+						}
+					</ol>
+				</div>
+			</div>
+		</section>
+
+		{
+			projects.map((p) => (
+				<>
+					<section id={p.id}>
+						<div class="sheet">
+							<div class="page divider">
+								<div class="text">
+									<h2>{p.data.title}</h2>
+									<p class="meta">
+										<b>Type</b> / {p.data.type}
+										<br />
+										<b>Location</b> / {p.data.location}
+										<br />
+										<b>Year</b> / {p.data.year}
+									</p>
+									<p.Content />
+								</div>
+								<Image src={p.sketch} alt={`Sketch of ${p.data.title}`} class="art" />
+							</div>
+						</div>
+					</section>
+					{p.sheets.map((img, i) => (
+						<section id={`${p.id}-${i + 1}`}>
+							{/* The link opens the full-size sheet so small legends can be zoomed. */}
+							<a class="sheet" href={img.src}>
+								<Image
+									src={img}
+									format="webp"
+									widths={[1280, 1920, 2560, img.width]}
+									sizes={SHEET_SIZES}
+									alt={`${p.data.title}, sheet ${i + 1} of ${p.sheets.length}`}
+								/>
+							</a>
+						</section>
+					))}
+				</>
+			))
+		}
+
+		<section id="end">
+			<div class="sheet">
+				<div class="page back-a">
+					<Image src={back} alt="Fragment of the cover diagram" class="art ink" />
+					<div class="text">
+						<h2>Marcela Luna</h2>
+						<p class="meta"><b>Email</b> / <a href={`mailto:${EMAIL}`}>{EMAIL}</a></p>
+					</div>
+				</div>
+				<div class="page back-b">
+					<h2>Portfolio</h2>
+					<Image src={back} alt="" class="art" />
+					<p class="name">Marcela Luna</p>
+					<p><a href={`mailto:${EMAIL}`}>{EMAIL}</a></p>
+				</div>
+				<div class="page back-c">
+					<Image src={back} alt="" class="art ink" />
+					<div class="text">
+						<p class="name">Marcela Luna</p>
+						<h2><a href={`mailto:${EMAIL}`}>{EMAIL}</a></h2>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<nav class="nodes" aria-label="Pages">
+			{
+				stops.map((s) => (
+					<a href={s.href} aria-label={s.label} title={s.label} style={`left:${(s.at / (pageCount - 1)) * 100}%`}>
+						{s.at === 0 ? (
+							<svg viewBox="-8 -8 16 16">
+								<circle r="6.5" fill="none" stroke="currentColor" />
+								<path d="M-6 0 0-6M-5 4 4-5M-1 6 6-1" stroke="currentColor" />
+							</svg>
+						) : (
+							<svg viewBox="-8 -8 16 16">
+								<path d="M0-7Q1.5-1.5 7 0Q1.5 1.5 0 7Q-1.5 1.5-7 0Q-1.5-1.5 0-7Z" fill="currentColor" />
+							</svg>
+						)}
+						{s.n && <small>{s.n}</small>}
+					</a>
+				))
+			}
+			<i class="here" />
+		</nav>
+
+		<div class="proto">
+			cover <button data-v="a">A</button><button data-v="b">B</button><button data-v="c">C</button>
+		</div>
 	</body>
 </html>
+
+<style is:global>
+	/* Stand-ins: the PDF's type is outlined, so the real font names are unknown. */
+	:root {
+		--display: 'Archivo Variable', 'Helvetica Neue', Arial, sans-serif;
+		--body: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+	}
+	* {
+		box-sizing: border-box;
+		margin: 0;
+	}
+	html {
+		scroll-snap-type: y mandatory;
+		background: #fff;
+		color: #000;
+		font-family: var(--body);
+	}
+	/* Nav and contents links glide to their section instead of jumping. */
+	@media (prefers-reduced-motion: no-preference) {
+		html {
+			scroll-behavior: smooth;
+		}
+	}
+	a {
+		color: inherit;
+		text-decoration: none;
+	}
+	a:hover {
+		text-decoration: underline;
+	}
+	img {
+		display: block;
+	}
+
+	/* One screen per spread. The sheet is the 2:1 PDF page, fitted to the viewport. */
+	section {
+		height: 100svh;
+		scroll-snap-align: start;
+		display: grid;
+		place-items: center;
+		overflow: hidden;
+	}
+	.sheet {
+		width: min(100vw, 200svh);
+		aspect-ratio: 2 / 1;
+		container-type: inline-size;
+		position: relative;
+		overflow: hidden;
+	}
+	.sheet > img {
+		width: 100%;
+		height: auto;
+	}
+	/* 1em = the PDF's 10.5pt body text on a 1190pt-wide page. */
+	.page {
+		position: absolute;
+		inset: 0;
+		font-size: 0.88cqw;
+		line-height: 1.15;
+	}
+	.page > * {
+		position: absolute;
+	}
+	.dark,
+	[data-cover='a'] #end,
+	[data-cover='c'] #cover,
+	[data-cover='c'] #end {
+		background: #000;
+		color: #fff;
+	}
+	.ink {
+		filter: contrast(1.2) invert(1);
+	}
+	[class*='cover-'],
+	[class*='back-'] {
+		display: none;
+	}
+	[data-cover='a'] :is(.cover-a, .back-a),
+	[data-cover='b'] :is(.cover-b, .back-b),
+	[data-cover='c'] :is(.cover-c, .back-c) {
+		display: block;
+	}
+
+	h1,
+	h2,
+	.num {
+		font-family: var(--display);
+		font-stretch: 125%;
+		font-weight: 800;
+		font-size: 1.3em;
+		line-height: 1.1;
+		text-transform: uppercase;
+	}
+	.name {
+		font-size: 1.4em;
+		letter-spacing: 0.02em;
+		text-transform: uppercase;
+	}
+	.meta {
+		margin: 1.1em 0 1.3em;
+	}
+	.meta b {
+		font-style: italic;
+		text-transform: uppercase;
+	}
+	.text p + p:not(.meta) {
+		margin-top: 0;
+	}
+	/* The short rule above every title. */
+	.text :is(h1, h2)::before {
+		content: '';
+		display: block;
+		width: 1.75em;
+		border-top: 0.2em solid;
+		margin-bottom: 0.9em;
+	}
+
+	/* Project divider, and cover A which borrows it. */
+	.divider h2 {
+		white-space: nowrap;
+	}
+	.divider .text,
+	.cover-a .text {
+		left: 13.9%;
+		top: 27.5%;
+		width: 22.5%;
+	}
+	.divider .art {
+		filter: brightness(1.03); /* lifts the faint scan box around some sketches to white */
+		left: 60.5%;
+		top: 26%;
+		width: 29%;
+		height: auto;
+	}
+	.cover-a .art {
+		top: 6%;
+		height: 88%;
+		width: auto;
+		left: 74%;
+		translate: -50%;
+	}
+
+	.cover-b,
+	.back-b {
+		text-align: center;
+	}
+	:is(.cover-b, .back-b) > * {
+		left: 50%;
+		translate: -50%;
+		white-space: nowrap;
+	}
+	.cover-b h1 {
+		top: 12%;
+	}
+	.cover-b .art {
+		top: 17%;
+		height: 66%;
+		width: auto;
+	}
+	.cover-b .name {
+		top: 85%;
+	}
+
+	.cover-c .art {
+		height: 190%;
+		width: auto;
+		top: -45%;
+		left: 38%;
+	}
+	.cover-c .text,
+	.back-c .text {
+		left: 2.9%;
+		bottom: 9%;
+	}
+	.cover-c h1 {
+		font-size: 4em;
+		margin-bottom: 0.3em;
+	}
+
+	.back-a .art {
+		left: 16%;
+		top: 30%;
+		width: 20%;
+		height: auto;
+	}
+	.back-a .text {
+		left: 60.5%;
+		top: 27.5%;
+	}
+	.back-b h2 {
+		top: 36%;
+	}
+	.back-b .art {
+		top: 40.5%;
+		width: 9.5%;
+		height: auto;
+	}
+	.back-b .name {
+		top: 60.5%;
+	}
+	.back-b p:last-child {
+		top: 66%;
+	}
+	.back-c .art {
+		width: 62%;
+		height: auto;
+		left: 45%;
+		top: -30%;
+	}
+	.back-c h2 {
+		font-size: 2.6em;
+		text-transform: none;
+		margin-top: 0.3em;
+	}
+	.back-c h2::before {
+		display: none;
+	}
+
+	.toc h2 {
+		left: 2.9%;
+		top: 25%;
+		font-size: 1.3em;
+	}
+	.toc ol {
+		left: 2.9%;
+		right: 2.9%;
+		top: 33%;
+		display: flex;
+		justify-content: space-between;
+		list-style: none;
+		padding: 0;
+	}
+	.toc a {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		column-gap: 0.6em;
+		width: 17.7cqw;
+		text-decoration: none;
+	}
+	.toc img {
+		grid-column: 1 / -1;
+		width: 62%;
+		height: auto;
+		margin: 0 auto 0.6em;
+		transition: scale 0.3s;
+	}
+	.toc a:hover img {
+		scale: 1.08;
+	}
+	.toc .num {
+		grid-row: span 2;
+		font-size: 3em;
+		line-height: 1;
+	}
+	.toc hr {
+		grid-column: 1 / -1;
+		width: 100%;
+		border: 0;
+		border-top: 1px solid;
+		margin-bottom: 1.4em;
+	}
+	.toc .title {
+		font-weight: 700;
+		font-size: 1.2em;
+		text-transform: uppercase;
+		align-self: end;
+		white-space: nowrap;
+	}
+	.toc i {
+		opacity: 0.6;
+	}
+
+	/* Node-and-arc wayfinding: one node per stop, a ring that travels with the scroll. */
+	.nodes {
+		position: fixed;
+		bottom: 0.9rem;
+		left: 50%;
+		translate: -50%;
+		width: min(70vw, 34rem);
+		height: 1rem;
+		color: #fff;
+		mix-blend-mode: difference;
+	}
+	.nodes::before {
+		content: '';
+		position: absolute;
+		inset: 50% 0 auto;
+		border-top: 1px solid;
+		opacity: 0.5;
+	}
+	.nodes a {
+		position: absolute;
+		top: 0;
+		width: 1rem;
+		height: 1rem;
+		translate: -50%;
+		transition: scale 0.2s;
+	}
+	.nodes a:hover {
+		scale: 1.5;
+	}
+	.nodes small {
+		position: absolute;
+		bottom: 100%;
+		left: 50%;
+		translate: -50%;
+		font-size: 0.6rem;
+	}
+	.here {
+		display: none;
+	}
+	@supports (animation-timeline: scroll()) {
+		.here {
+			display: block;
+			position: absolute;
+			top: -0.25rem;
+			left: 0;
+			width: 1.5rem;
+			height: 1.5rem;
+			translate: -50%;
+			border: 1px solid;
+			border-radius: 50%;
+			pointer-events: none;
+			animation: travel linear both;
+			animation-timeline: scroll(root);
+		}
+	}
+	@keyframes travel {
+		to {
+			left: 100%;
+		}
+	}
+
+	.proto {
+		position: fixed;
+		right: 0.75rem;
+		bottom: 0.6rem;
+		font: 0.7rem var(--body);
+		color: #fff;
+		mix-blend-mode: difference;
+	}
+	.proto button {
+		font: inherit;
+		color: inherit;
+		background: none;
+		border: 1px solid;
+		margin-left: 0.25rem;
+		padding: 0.1rem 0.4rem;
+		cursor: pointer;
+	}
+
+	/* Portrait screens: type pages reflow into one readable column; drawing sheets stay 2:1. */
+	@media (max-aspect-ratio: 1/1) {
+		html {
+			scroll-snap-type: y proximity;
+		}
+		section {
+			height: auto;
+			min-height: 100svh;
+		}
+		div.sheet {
+			width: 100%;
+			aspect-ratio: auto;
+		}
+		.page {
+			position: static;
+			font-size: 1rem;
+			line-height: 1.35;
+			padding: 3rem 1.5rem 4rem;
+		}
+		.page > *,
+		.page .art {
+			position: static !important;
+			translate: none !important;
+			width: auto !important;
+			height: auto !important;
+			max-width: 100%;
+			white-space: normal !important;
+		}
+		.page .art {
+			width: 80% !important;
+			margin: 2rem auto;
+		}
+		.cover-c h1 {
+			font-size: 2em;
+		}
+		.back-c h2 {
+			font-size: 1.2em;
+		}
+		.toc ol {
+			display: grid;
+			gap: 2.5rem;
+			margin-top: 2rem;
+		}
+		.toc a {
+			width: auto;
+		}
+		.toc img {
+			width: 45%;
+		}
+		.proto {
+			bottom: 2.4rem;
+		}
+	}
+</style>

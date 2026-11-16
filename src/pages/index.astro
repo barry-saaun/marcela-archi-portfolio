@@ -5,7 +5,7 @@ import '@fontsource-variable/archivo/wdth.css';
 import cover from '../assets/cover.png';
 import back from '../assets/back.png';
 
-const EMAIL = 'marcelalunadonado@gmail.com'; // TODO: Marcela's real address
+const EMAIL = 'marcelalunadonado@gmail.com'; // 
 
 type Img = { default: ImageMetadata };
 const sketches = import.meta.glob<Img>('../assets/*/sketch.png', { eager: true });
@@ -193,6 +193,8 @@ const SHEET_SIZES = '(max-aspect-ratio: 1/1) 100vw, min(100vw, 200svh)';
 					</a>
 				))
 			}
+			{/* One tick per page, so the line reads as a ruler of the whole book. */}
+			{Array.from({ length: pageCount }, (_, i) => <b style={`left:${(i / (pageCount - 1)) * 100}%`} />)}
 			<i class="here" />
 		</nav>
 
@@ -221,6 +223,7 @@ const SHEET_SIZES = '(max-aspect-ratio: 1/1) 100vw, min(100vw, 200svh)';
 		margin: 0;
 	}
 	html {
+		scrollbar-width: none; /* the node line below is the scrollbar */
 		scroll-snap-type: y mandatory;
 		background: #fff;
 		color: #000;
@@ -491,6 +494,13 @@ const SHEET_SIZES = '(max-aspect-ratio: 1/1) 100vw, min(100vw, 200svh)';
 		height: 1rem;
 		color: #fff;
 		mix-blend-mode: difference;
+	}
+	.nodes b {
+		position: absolute;
+		top: 30%;
+		height: 40%;
+		border-left: 1px solid;
+		opacity: 0.5;
 	}
 	.nodes::before {
 		content: '';
